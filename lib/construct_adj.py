@@ -1,5 +1,8 @@
+import os
+
 import numpy as np
 import ipdb
+
 
 def get_adjacency_matrix(distance_df_filename, num_of_vertices, id_filename=None, normalized_k=0.01):
     '''
@@ -21,15 +24,15 @@ def get_adjacency_matrix(distance_df_filename, num_of_vertices, id_filename=None
         return adj_mx, None
 
     else:
-        
+
         import csv
 
         A = np.zeros((int(num_of_vertices), int(num_of_vertices)),
                      dtype=np.float32)
 
         distanceA = np.zeros((int(num_of_vertices), int(num_of_vertices)),
-                            dtype=np.float32)
-        distanceA[:]=np.inf
+                             dtype=np.float32)
+        distanceA[:] = np.inf
         if id_filename:
 
             with open(id_filename, 'r') as f:
@@ -57,14 +60,24 @@ def get_adjacency_matrix(distance_df_filename, num_of_vertices, id_filename=None
                     A[i, j] = 1
                     distanceA[i, j] = distance
                 for i in range(170):
-                    distanceA[i,i]=0
+                    distanceA[i, i] = 0
                 distanceA_ = distanceA[~np.isinf(distanceA)].flatten()
                 std = distanceA_.std()
-                adj = np.exp(-np.square(distanceA/std))
-                adj[adj<normalized_k]=0
+                adj = np.exp(-np.square(distanceA / std))
+                adj[adj < normalized_k] = 0
             return adj
 
+
 num_node = 307
-data = '/data/chachen/code/dataset/distance04.csv'
-A = get_adjacency_matrix(data,num_node,None,normalized_k=0.1)
-np.save("A_04.npy",A)
+# data = '/data/chachen/code/dataset/distance04.csv'
+# A = get_adjacency_matrix(data,num_node,None,normalized_k=0.1)
+# np.save("A_04.npy",A)
+
+# PEMS03 = os.path.join('../', 'STSGCN_data/PEMS03/PEMS03_data.csv')
+PEMS04 = os.path.join('../', 'STSGCN_data/PEMS04/PEMS04.csv')
+PEMS07 = os.path.join('../', 'STSGCN_data/PEMS07/PEMS07.csv')
+PEMS08 = os.path.join('../', 'STSGCN_data/PEMS08/PEMS08.csv')
+
+
+A = get_adjacency_matrix(PEMS04, num_node, None, normalized_k=0.1)
+np.save("A_04.npy", A)
