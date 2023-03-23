@@ -30,7 +30,7 @@ class AdaptiveTransformer(nn.Module):
         #Add input dropout
         x = self.input_dropout(inputs)
 
-        if(self.dhm):
+        if self.dhm:
             x, (remainders,n_updates) = self.dhm_fn(x, inputs, STE, self.att, self.position_embedding, self.recurrent_embedding, self.max_step)
             return x, (remainders,n_updates)
         else:
@@ -60,7 +60,7 @@ class DHM_basic(nn.Module):
         previous_state = torch.zeros_like(inputs).cuda()
         step = 0
         # Dynamic Halting Module
-        while( ((halting_probability<self.threshold) & (n_updates < max_step)).byte().any()):
+        while ((halting_probability < self.threshold) & (n_updates < max_step)).byte().any():
             
             state = state + pos_enc[:, :inputs.shape[1], :].type_as(inputs.data)
             state = state + recur_enc[:, step, :].unsqueeze(1).repeat(1,inputs.shape[1],1).type_as(inputs.data)
@@ -85,7 +85,7 @@ class DHM_basic(nn.Module):
 
             state = state.view(B,T,N,D)
 
-            if(encoder_output):
+            if encoder_output:
                 state, _ = fn((state,encoder_output))
             else:
                 state = fn(state, STE, None)

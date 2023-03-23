@@ -63,7 +63,7 @@ class DHM_basic(nn.Module):
 
         step = 0
         # Dynamic Halting Module
-        while( ((halting_probability<self.threshold) & (n_updates < max_step)).byte().any()):
+        while ((halting_probability < self.threshold) & (n_updates < max_step)).byte().any():
 
             state = state + pos_enc[:, :inputs.shape[1], :].type_as(inputs.data)
             state = state + recur_enc[:, step, :].unsqueeze(1).repeat(1,inputs.shape[1],1).type_as(inputs.data)
@@ -89,7 +89,7 @@ class DHM_basic(nn.Module):
             state = state.view(B,N,T,D)
             state = state.transpose(1,2)
 
-            if(encoder_output):
+            if encoder_output:
                 state, _ = fn((state,encoder_output))
             else:
                 state = fn(state, STE, mask)

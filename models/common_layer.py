@@ -145,6 +145,7 @@ class Conv(nn.Module):
 class PositionwiseFeedForward(nn.Module):
     """
     Does a Linear + RELU + Linear on each of the timesteps
+    Equation-10---Transition(·)
     """
     def __init__(self, input_depth, filter_size, output_depth, layer_config='cc', padding='left', dropout=0.0):
 
