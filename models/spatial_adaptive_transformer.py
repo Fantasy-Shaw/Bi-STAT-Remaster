@@ -22,7 +22,7 @@ class AdaptiveTransformer(nn.Module):
         self.att = AttentionLayer(flag, hidden_size, num_heads, layer_dropout, relu_dropout)
         self.layer_norm = LayerNorm(hidden_size)
         self.input_dropout = nn.Dropout(input_dropout)
-        if(self.dhm):
+        if self.dhm:
             self.dhm_fn = DHM_basic(epsilon, hidden_size)
 
     def forward(self, inputs, STE):

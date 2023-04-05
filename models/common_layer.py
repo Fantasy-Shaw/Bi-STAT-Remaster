@@ -4,13 +4,14 @@ import torch.nn.functional as F
 import numpy as np
 import math
 
+
 class SpatialTransformerModel(torch.nn.Module):
     def __init__(self, K, d):
         super(SpatialTransformerModel, self).__init__()
-        D = K*d
-        self.FC_q = torch.nn.Linear(2*D, D)
-        self.FC_k = torch.nn.Linear(2*D, D)
-        self.FC_v = torch.nn.Linear(2*D, D)
+        D = K * d
+        self.FC_q = torch.nn.Linear(2 * D, D)
+        self.FC_k = torch.nn.Linear(2 * D, D)
+        self.FC_v = torch.nn.Linear(2 * D, D)
         self.FC_o1 = torch.nn.Linear(D, D)
         self.FC_o2 = torch.nn.Linear(D, D)
         self.K = K
@@ -29,24 +30,23 @@ class SpatialTransformerModel(torch.nn.Module):
         attention /= (self.d ** 0.5)
         attention = self.softmax(attention)
         X = torch.matmul(attention, value)
-        X = torch.cat(torch.split(X, X.shape[0]//self.K, dim=0), dim=-1)
+        X = torch.cat(torch.split(X, X.shape[0] // self.K, dim=0), dim=-1)
         X = self.FC_o2(F.relu(self.FC_o1(X)))
         return X
-        
+
 
 class TemporalTransformerModel(torch.nn.Module):
     def __init__(self, K, d):
         super(TemporalTransformerModel, self).__init__()
-        D = K*d
-        self.FC_q = torch.nn.Linear(2*D, D)
-        self.FC_k = torch.nn.Linear(2*D, D)
-        self.FC_v = torch.nn.Linear(2*D, D)
+        D = K * d
+        self.FC_q = torch.nn.Linear(2 * D, D)
+        self.FC_k = torch.nn.Linear(2 * D, D)
+        self.FC_v = torch.nn.Linear(2 * D, D)
         self.FC_o1 = torch.nn.Linear(D, D)
         self.FC_o2 = torch.nn.Linear(D, D)
         self.K = K
         self.d = d
         self.softmax = torch.nn.Softmax(dim=-1)
-
 
     def forward(self, X, STE, mask):
         X = torch.cat((X, STE), dim=-1)
@@ -70,11 +70,11 @@ class TemporalTransformerModel(torch.nn.Module):
             mask = torch.unsqueeze(torch.unsqueeze(mask, dim=0), dim=0)
             mask = mask.repeat(self.K * batch_size, num_vertex, 1, 1)
             mask = mask.to(torch.bool)
-            attention = torch.where(mask, attention, -2 ** 15 + torch.tensor([1],dtype=torch.float32).to('cuda'))
+            attention = torch.where(mask, attention, -2 ** 15 + torch.tensor([1], dtype=torch.float32).to('cuda'))
         attention = self.softmax(attention)
         X = torch.matmul(attention, value)
         X = torch.transpose(X, 2, 1)
-        X = torch.cat(torch.split(X, X.shape[0]//self.K, dim=0), dim=-1)
+        X = torch.cat(torch.split(X, X.shape[0] // self.K, dim=0), dim=-1)
         X = self.FC_o2(F.relu(self.FC_o1(X)))
         return X
 
@@ -84,58 +84,60 @@ class AttentionLayer(nn.Module):
     Represents one layer of the Transformer
 
     """
-    def __init__(self, flag, hidden_size, num_heads, layer_dropout=0.0, relu_dropout=0.0):     
+
+    def __init__(self, flag, hidden_size, num_heads, layer_dropout=0.0, relu_dropout=0.0):
         super(AttentionLayer, self).__init__()
 
-        if flag=='T':
-            self.multi_head_attention = TemporalTransformerModel(num_heads, hidden_size//num_heads)
-        if flag=='S':
-            self.multi_head_attention = SpatialTransformerModel(num_heads, hidden_size//num_heads)
-        
+        if flag == 'T':
+            self.multi_head_attention = TemporalTransformerModel(num_heads, hidden_size // num_heads)
+        if flag == 'S':
+            self.multi_head_attention = SpatialTransformerModel(num_heads, hidden_size // num_heads)
+
         self.positionwise_feed_forward = PositionwiseFeedForward(hidden_size, hidden_size, hidden_size,
-                                                                 layer_config='ll', padding = 'both', 
+                                                                 layer_config='ll', padding='both',
                                                                  dropout=relu_dropout)
         self.dropout = nn.Dropout(layer_dropout)
         self.layer_norm_mha = LayerNorm(hidden_size)
         self.layer_norm_ffn = LayerNorm(hidden_size)
-        
+
     def forward(self, inputs, STE, mask):
 
         x = inputs
-        
+
         # Layer Normalization
         x_norm = self.layer_norm_mha(x)
-        
+
         # Multi-head attention
         y = self.multi_head_attention(x_norm, STE, mask)
-        
+
         # Dropout and residual
         x = self.dropout(x + y)
-        
+
         # Layer Normalization
         x_norm = self.layer_norm_ffn(x)
-        
+
         # Positionwise Feedforward
         y = self.positionwise_feed_forward(x_norm)
-        
+
         # Dropout and residual
         y = self.dropout(x + y)
-        
+
         return y
+
 
 class Conv(nn.Module):
     """
     Convenience class that does padding and convolution for inputs in the format
 
     """
+
     def __init__(self, input_size, output_size, kernel_size, pad_type):
         super(Conv, self).__init__()
-        padding = (kernel_size - 1, 0) if pad_type == 'left' else (kernel_size//2, (kernel_size - 1)//2)
+        padding = (kernel_size - 1, 0) if pad_type == 'left' else (kernel_size // 2, (kernel_size - 1) // 2)
         self.pad = nn.ConstantPad1d(padding, 0)
         self.conv = nn.Conv1d(input_size, output_size, kernel_size=kernel_size, padding=0)
 
     def forward(self, inputs):
-
         inputs = self.pad(inputs.permute(0, 2, 3, 1))
         outputs = self.conv(inputs).permute(0, 2, 3, 1)
 
@@ -147,13 +149,14 @@ class PositionwiseFeedForward(nn.Module):
     Does a Linear + RELU + Linear on each of the timesteps
     Equation-10---Transition(·)
     """
+
     def __init__(self, input_depth, filter_size, output_depth, layer_config='cc', padding='left', dropout=0.0):
 
         super(PositionwiseFeedForward, self).__init__()
-        
+
         layers = []
-        sizes = ([(input_depth, filter_size)] + 
-                 [(filter_size, filter_size)]*(len(layer_config)-2) + 
+        sizes = ([(input_depth, filter_size)] +
+                 [(filter_size, filter_size)] * (len(layer_config) - 2) +
                  [(filter_size, output_depth)])
 
         for lc, s in zip(list(layer_config), sizes):
@@ -167,7 +170,7 @@ class PositionwiseFeedForward(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
-        
+
     def forward(self, inputs):
         x = inputs
         for i, layer in enumerate(self.layers):
@@ -193,16 +196,15 @@ class LayerNorm(nn.Module):
 
 
 def _gen_embedding(length, channels, min_timescale=1.0, max_timescale=1.0e4):
-    
     position = np.arange(length)
     num_timescales = channels // 2
-    log_timescale_increment = ( math.log(float(max_timescale) / float(min_timescale)) / (float(num_timescales) - 1))
+    log_timescale_increment = (math.log(float(max_timescale) / float(min_timescale)) / (float(num_timescales) - 1))
     inv_timescales = min_timescale * np.exp(np.arange(num_timescales).astype(np.float) * -log_timescale_increment)
     scaled_time = np.expand_dims(position, 1) * np.expand_dims(inv_timescales, 0)
 
     signal = np.concatenate([np.sin(scaled_time), np.cos(scaled_time)], axis=1)
-    signal = np.pad(signal, [[0, 0], [0, channels % 2]], 
+    signal = np.pad(signal, [[0, 0], [0, channels % 2]],
                     'constant', constant_values=[0.0, 0.0])
-    signal =  signal.reshape([1, length, channels])
+    signal = signal.reshape([1, length, channels])
 
     return torch.from_numpy(signal).type(torch.FloatTensor)
